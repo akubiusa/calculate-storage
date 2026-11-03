@@ -59,8 +59,8 @@ if ! python3 -c "import ensurepip" >/dev/null 2>&1; then
 fi
 
 # create venv and install requirements
-# pip なしで作成された venv を作り直すため、ディレクトリではなく pip の有無で判定する
-if [ ! -x venv/bin/pip ]; then
+# venv/bin/pip が残っていても pip モジュールが無い venv があるため、pip が実際に動くかで判定する
+if ! venv/bin/python3 -m pip --version >/dev/null 2>&1; then
   python3 -m venv --clear venv
 fi
 
