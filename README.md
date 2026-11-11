@@ -74,3 +74,7 @@ python -m unittest discover -s . -p "test_*.py"
 ```
 
 The tests mock GitHub and psutil and need no network or token. Python files use 2-space indentation (see `.editorconfig`). See `AGENTS.md` for contributor and agent guidance.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
