@@ -274,10 +274,10 @@ def main():
   issue_number = sys.argv[1] if len(sys.argv) > 1 else None
   if issue_number is None:
     logging.error("Please input issue number")
-    return
+    return 1
   if not is_valid_issue_number(issue_number):
     logging.error("Invalid issue number")
-    return
+    return 1
 
   logging.info(f"Issue number: {issue_number}")
 
@@ -289,7 +289,7 @@ def main():
   drives = github_issue.get_computer_drives(hostname)
   if len(drives) == 0:
     logging.warning(f"No drives found ({hostname})")
-    return
+    return 1
 
   results = []
   for drive in drives:
@@ -317,6 +317,7 @@ def main():
 
   logging.info("Update issue body")
   github_issue.update_issue_body()
+  return 0
 
 if __name__ == "__main__":
-  main()
+  sys.exit(main())

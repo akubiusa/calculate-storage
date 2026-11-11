@@ -60,8 +60,9 @@ class TestCalculateStorage(unittest.TestCase):
     try:
       with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
         with patch('sys.argv', ["calculate_storage.py", "1"]):
-          calculate_storage.main()
+          exit_status = calculate_storage.main()
 
+      self.assertEqual(exit_status, 0)
       mock_issue_instance.update_storage_row.assert_called_once_with("TEST_COMPUTER", "C", mock_disk_usage.return_value)
       mock_issue_instance.update_issue_body.assert_called_once()
     finally:
@@ -75,8 +76,41 @@ class TestCalculateStorage(unittest.TestCase):
       with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
         with patch('sys.argv', ["calculate_storage.py", "invalid"]):
           with self.assertLogs(level='INFO') as log:
-            calculate_storage.main()
+            exit_status = calculate_storage.main()
             self.assertTrue(any("Invalid issue number" in message for message in log.output))
+      self.assertEqual(exit_status, 1)
+    finally:
+      self._cleanup_logging_handlers()
+      tmpdir.cleanup()
+
+  def test_main_missing_issue_number(self):
+    tmpdir = tempfile.TemporaryDirectory()
+    try:
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
+        with patch('sys.argv', ["calculate_storage.py"]):
+          with self.assertLogs(level='INFO') as log:
+            exit_status = calculate_storage.main()
+            self.assertTrue(any("Please input issue number" in message for message in log.output))
+      self.assertEqual(exit_status, 1)
+    finally:
+      self._cleanup_logging_handlers()
+      tmpdir.cleanup()
+
+  @patch('calculate_storage.get_real_hostname', return_value="TEST_COMPUTER")
+  @patch('calculate_storage.get_github_token', return_value="test_token")
+  @patch('calculate_storage.GitHubIssue')
+  def test_main_no_drives(self, MockGitHubIssue, mock_get_github_token, mock_get_real_hostname):
+    mock_issue_instance = MockGitHubIssue.return_value
+    mock_issue_instance.get_computer_drives.return_value = []
+
+    tmpdir = tempfile.TemporaryDirectory()
+    try:
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
+        with patch('sys.argv', ["calculate_storage.py", "1"]):
+          exit_status = calculate_storage.main()
+
+      self.assertEqual(exit_status, 1)
+      mock_issue_instance.update_issue_body.assert_not_called()
     finally:
       self._cleanup_logging_handlers()
       tmpdir.cleanup()
@@ -266,7 +300,8 @@ class TestCalculateStorage(unittest.TestCase):
               mock_issue_instance = MockGitHubIssue.return_value
               mock_issue_instance.get_computer_drives.return_value = ["C"]
 
-              calculate_storage.main()
+              exit_status = calculate_storage.main()
+              self.assertEqual(exit_status, 0)
               mock_issue_instance.update_storage_row.assert_not_called()
     finally:
       self._cleanup_logging_handlers()

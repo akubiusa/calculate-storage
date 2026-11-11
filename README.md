@@ -51,7 +51,9 @@ The log directory must be writable: with the default on Unix you need write acce
 - Log: `YYYY-MM-DD.log` in the log directory (DEBUG level; the console shows INFO and above).
 - Results: `results/<hostname>_<YYYYMMDD>.txt` in the working directory, one JSON object per line (JSON Lines despite the `.txt` extension) with `drive`, `used`, `total`, `percent`, `used_size`, `total_size` and `update_result`.
 
-If the host has no rows in the Issue, the tool logs a warning and exits without writing. A drive for which `psutil.disk_usage()` fails is logged and skipped.
+If the host has no rows in the Issue, the tool logs a warning and exits with status 1 without writing. A drive for which `psutil.disk_usage()` fails is logged and skipped.
+
+Exit status: the tool exits with 0 when the update flow completes, and with status 1 when the Issue number is missing or invalid or when the host has no rows in the Issue.
 
 ## Deployment scripts
 
