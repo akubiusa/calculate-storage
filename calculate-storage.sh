@@ -73,7 +73,7 @@ if type docker >/dev/null 2>&1; then
 fi
 
 mkdir -p /opt/calculate-storage
-chmod 777 /opt/calculate-storage
+chmod 755 /opt/calculate-storage
 cd /opt/calculate-storage || exit 1
 
 # clone repository
