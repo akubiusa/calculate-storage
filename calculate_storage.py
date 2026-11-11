@@ -91,7 +91,7 @@ class GitHubIssue:
   storage_rows = None
 
   row_regex = re.compile(r"(?P<markdown>.*) <!-- calculate-storage#(?P<computer_name>.+)#(?P<drive>.+) -->")
-  # 1.9TB (HDD) というサイズ + ドライブの種類を取得するための正規表現
+  # Matches the size and drive type column, e.g. "1.90 TB (HDD)"
   size_regex = re.compile(r"^(?P<size>[0-9.]+ [TGMK]B) \((?P<drive_type>.+)\)$")
 
   def __init__(self, repo_name, issue_number, github_token):
@@ -103,8 +103,6 @@ class GitHubIssue:
     self.storage_rows = self.__get_storage_rows()
 
   def update_storage_row(self, computer_name, drive, usage):
-    # self.storage_rows から computer_name と drive が一致する行を取得する
-    # その行の checkmark、used、size を更新する
     used_size = self.get_human_readable_size(usage.used)
     used_percent = usage.percent
     total_size = self.get_human_readable_size(usage.total)
@@ -132,12 +130,10 @@ class GitHubIssue:
     return computer_drives
 
   def update_issue_body(self):
-    # 最新のissue bodyを取得して、同時実行時の競合を防ぐ
-    # storage_rowsは既にupdate_storage_rowで更新済みなので再取得しない
+    # Re-fetch right before writing so concurrent edits by other hosts are not overwritten.
+    # storage_rows is not re-parsed: it already holds this run's updates.
     self.body = self.__get_issue_body()
-    
-    # self.storage_rows の内容を元に、issue の本文を更新する
-    # <!-- calculate-storage#computer_name#drive --> というコメントを探して、その行を更新する
+
     rows = self.body.split("\n")
     new_rows = []
     for row in rows:
@@ -191,7 +187,7 @@ class GitHubIssue:
       if m is None:
         continue
 
-      # | で split して、それぞれの値を取得する
+      # Split the table part on "|"; a valid row yields 7 parts (empty edges + 5 columns)
       markdown = m.group("markdown")
       split_markdown = markdown.split("|")
       if len(split_markdown) != 7:

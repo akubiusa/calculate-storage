@@ -1,7 +1,6 @@
 #!/bin/bash
 set -eu
 
-# root check
 if [ "$(id -u)" -ne 0 ]; then
   echo "Please run as root"
   exit 1
@@ -31,8 +30,8 @@ function check_command() {
 check_command git
 check_command python3
 
-# docker system prune は進捗を出さないため、dangling イメージの残数から進捗と ETA を推定して出力する
-# dangling 以外の未使用イメージは件数に含まれない
+# docker system prune prints no progress, so estimate progress and ETA from the number of remaining dangling images.
+# Unused images that are not dangling are not counted.
 function docker_prune_with_progress() {
   local interval=30
   local total start prune_pid tick remaining done_count elapsed
@@ -43,7 +42,7 @@ function docker_prune_with_progress() {
 
   docker system prune -a -f &
   prune_pid=$!
-  # バックグラウンドジョブは SIGINT を無視するため、中断時は明示的に止める
+  # Background jobs ignore SIGINT, so stop the prune explicitly on interrupt
   trap 'kill "$prune_pid" 2>/dev/null; exit 130' INT TERM
 
   tick=0
@@ -68,7 +67,7 @@ function docker_prune_with_progress() {
   trap - INT TERM
 }
 
-# docker command exists
+# Destructive: removes all unused images, not only dangling ones
 if type docker >/dev/null 2>&1; then
   docker_prune_with_progress
 fi
@@ -84,7 +83,7 @@ else
   git pull
 fi
 
-# Debian/Ubuntu では ensurepip が python3-venv にのみ含まれる
+# On Debian/Ubuntu, ensurepip is only shipped in python3-venv
 if ! python3 -c "import ensurepip" >/dev/null 2>&1; then
   if type apt >/dev/null 2>&1; then
     apt update
@@ -96,7 +95,7 @@ if ! python3 -c "import ensurepip" >/dev/null 2>&1; then
 fi
 
 # create venv and install requirements
-# venv/bin/pip が残っていても pip モジュールが無い venv があるため、pip が実際に動くかで判定する
+# A leftover venv/bin/pip can exist without a working pip module, so test that pip actually runs
 if ! venv/bin/python3 -m pip --version >/dev/null 2>&1; then
   python3 -m venv --clear venv
 fi
