@@ -3,6 +3,7 @@ import json
 import re
 import sys
 import os
+import socket
 import psutil
 import requests
 import logging
@@ -238,7 +239,7 @@ def is_valid_issue_number(issue_number):
 
 def get_real_hostname():
   if os.name == 'nt':
-    return os.environ['COMPUTERNAME']
+    return os.environ.get('COMPUTERNAME') or socket.gethostname()
   else:
     return os.uname()[1]
 
