@@ -149,6 +149,8 @@ class GitHubIssue:
         if storage_row["computer_name"] == computer_name and storage_row["drive"] == drive:
           new_rows.append(storage_row["markdown"]["raw"] + f" <!-- calculate-storage#{computer_name}#{drive} -->")
           break
+      else:
+        new_rows.append(row)
 
     self.body = "\n".join(new_rows)
 

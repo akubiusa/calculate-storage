@@ -37,7 +37,7 @@ Run the tests before committing. CI (`.github/workflows/ci.yml`) runs them on Ub
 Managed rows are `| mark | computer | drive | used | size (type) | <!-- calculate-storage#<computer_name>#<drive> -->`.
 
 - The marker's `drive` is what is passed to `psutil.disk_usage()`; it can differ from the displayed drive column.
-- Rows without a marker are kept as is. Marker rows that fail parsing (not 7 `|`-separated parts, or an invalid size column) are not loaded and are dropped when the body is rewritten. Keep parsing and regeneration consistent when changing `row_regex` or `size_regex`.
+- Rows without a marker are kept as is. Marker rows that fail parsing (not 7 `|`-separated parts, or an invalid size column) are not loaded or updated, and are kept unchanged when the body is rewritten. Keep parsing and regeneration consistent when changing `row_regex` or `size_regex`.
 - `update_issue_body()` re-fetches the body just before the `PATCH` to avoid overwriting concurrent updates from other hosts.
 
 ## Conventions
