@@ -1,28 +1,18 @@
-# GitHub Copilot コードレビュー指示
+# GitHub Copilot review instructions
 
-calculate-storage は、GitHub Issue の Markdown テーブルを複数マシンのディスク使用量ダッシュボードとして更新する Python ツール（単一ファイル `calculate_storage.py`）です。以下の観点でレビューしてください。
+Follow `AGENTS.md` for project conventions. Review comments, commit messages, code comments and docstrings are written in English; runtime log and error messages are English.
 
-## 強制されている規約
+## Review checklist
 
-- コメント・docstring・レビューコメントは日本語。エラーメッセージ / ログメッセージは英語。
-- 日本語と英数字の間には半角スペースを入れる。これが欠けている箇所は指摘してよい。
-- インデントはスペース 2 個（Python も 2）。改行 LF、UTF-8、末尾改行あり（`.editorconfig`）。逸脱を指摘する。
-- 命名: クラス PascalCase、関数・変数 snake_case、定数 UPPER_SNAKE_CASE。
-- 公開関数・クラスには日本語 docstring を求める。
-- コミットは Conventional Commits（description は日本語）。
+- Issue body updates must not be destructive: rows without the `<!-- calculate-storage#computer_name#drive -->` marker must be preserved, and changes to `row_regex` or `size_regex` must keep parsing and regeneration consistent (marker rows that fail parsing are dropped on rewrite).
+- The token is read from `data/github_token.txt`; flag any exposure of the token or Issue body in logs, exceptions or commits, and any commit of `data/` or `results/`.
+- GitHub API failures (non-200), `psutil.disk_usage` `OSError` and directory creation failures must be handled and logged, not swallowed.
+- OS-specific code (`os.name`) must work on both Windows and Unix.
+- Logic changes need unittest coverage with GitHub and psutil mocked (no real network). CI covers Python 3.10 and later, so new syntax or APIs must work there.
 
-## 重点的に確認すべき点
+## Not worth flagging
 
-- **Issue 本文の破壊的更新**: 行は `<!-- calculate-storage#computer_name#drive -->` マーカーで識別する。マーカーの無い行（`row_regex` 不一致）は必ずそのまま保持すること。この非マーカー行の保持を壊す変更（無条件の行削除・並べ替え・マーカー欠落）は重大な指摘対象。なお現行実装では、マーカー付きでも 7 要素分割やサイズ形式の解析に失敗した行は `update_issue_body()` の再構成時に脱落する。この解析条件を不用意に厳しくして既存行を巻き込む変更にも注意する。
-- **正規表現の整合性**: 行検出 `(?P<markdown>.*) <!-- calculate-storage#(?P<computer_name>.+)#(?P<drive>.+) -->` とサイズ `^(?P<size>[0-9.]+ [TGMK]B) \((?P<drive_type>.+)\)$` を変える場合、双方向（解析と再生成）の整合が取れているか確認する。
-- **認証情報**: トークンは `data/github_token.txt` から読む。トークンや Issue 本文をログ・例外メッセージ・コミットに露出させていないか。`data/` `results/` 配下をコミットに含めていないか。
-- **エラーハンドリング**: GitHub API 呼び出し（非 200 応答）、`psutil.disk_usage` の `OSError`、ログ/結果ディレクトリ作成失敗が握り潰されず適切に処理・記録されているか。
-- **OS 依存処理**: ホスト名取得やパスなど OS 分岐（`os.name`）が Windows/Unix 双方で成立するか。片側のみで壊れる変更を指摘する。
-- **テスト**: ロジック変更に対応する unittest があるか。GitHub API・psutil などの外部依存は `unittest.mock` でモック化されているか（実ネットワーク通信を伴うテストは指摘対象）。CI は Python 3.9〜3.13 マトリックスのため、新しい構文/API が 3.9 で動くか確認する。
-
-## 誤検知しやすい（フラグ不要な）パターン
-
-- インデントが 2 スペースなのは仕様（PEP 8 の 4 スペースからの逸脱を指摘しない）。
-- `data/github_token.txt` からのトークン読み込みは意図的な設計。「環境変数を使え」という一般論は不要。
-- `GitHubIssue` の名前二重アンダースコアメソッド（`__get_issue_body` 等）は意図的な非公開メソッド。
-- 結果ファイルの拡張子が `.txt` で中身が JSON Lines なのは既存仕様。
+- 2-space Python indentation is intended (`.editorconfig`).
+- Reading the token from `data/github_token.txt` instead of an environment variable is intended.
+- Double-underscore methods on `GitHubIssue` are intentionally private.
+- The `.txt` extension of the JSON Lines results file is existing behavior.

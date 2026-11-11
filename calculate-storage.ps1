@@ -12,7 +12,7 @@ function Test-Command {
 Test-Command git
 Test-Command python3
 
-# docker command exists
+# Destructive: removes all unused images, not only dangling ones
 if (Get-Command docker -ErrorAction SilentlyContinue) {
   docker system prune -a -f
 }
