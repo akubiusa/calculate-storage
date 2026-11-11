@@ -277,7 +277,19 @@ class TestCalculateStorage(unittest.TestCase):
   def test_get_real_hostname_windows(self):
     hostname = calculate_storage.get_real_hostname()
     self.assertEqual(hostname, 'TEST_WINDOWS')
-    
+
+  @patch('calculate_storage.socket.gethostname', return_value='FALLBACK_HOST')
+  @patch('calculate_storage.os.name', 'nt')
+  @patch('calculate_storage.os.environ', {})
+  def test_get_real_hostname_windows_unset(self, mock_gethostname):
+    self.assertEqual(calculate_storage.get_real_hostname(), 'FALLBACK_HOST')
+
+  @patch('calculate_storage.socket.gethostname', return_value='FALLBACK_HOST')
+  @patch('calculate_storage.os.name', 'nt')
+  @patch('calculate_storage.os.environ', {'COMPUTERNAME': ''})
+  def test_get_real_hostname_windows_empty(self, mock_gethostname):
+    self.assertEqual(calculate_storage.get_real_hostname(), 'FALLBACK_HOST')
+
   @patch('calculate_storage.os.name', 'posix')
   @patch('calculate_storage.os')
   def test_get_real_hostname_unix(self, mock_os):

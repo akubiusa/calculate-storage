@@ -27,7 +27,7 @@ Each managed row is a Markdown table row followed by an HTML comment marker that
 | ✅ | hostname1 | C: | 1.20 TB (75.0%) | 1.60 TB (SSD) | <!-- calculate-storage#hostname1#C -->
 ```
 
-- Row marker: `<!-- calculate-storage#<computer_name>#<drive> -->`. `computer_name` must equal the host name reported by the machine (`COMPUTERNAME` on Windows, `os.uname()[1]` elsewhere). `drive` is passed as is to `psutil.disk_usage()`, so it can differ from the displayed drive column (for example marker `C` with display `C:`, or a mount point such as `/`).
+- Row marker: `<!-- calculate-storage#<computer_name>#<drive> -->`. `computer_name` must equal the host name reported by the machine (`COMPUTERNAME` on Windows, falling back to `socket.gethostname()` when it is unset or empty; `os.uname()[1]` elsewhere). `drive` is passed as is to `psutil.disk_usage()`, so it can differ from the displayed drive column (for example marker `C` with display `C:`, or a mount point such as `/`).
 - Table part: `| mark | computer | drive | used | size (type) |`. The size column must look like `1.60 TB (SSD)` (`[TGMK]B` unit followed by the drive type in parentheses).
 - Rows without a marker are kept unchanged. A marker row whose table part does not split into 7 `|`-separated parts or whose size column does not match the format above is not parsed and is dropped when the body is rewritten, so keep the format exact.
 - Add the rows yourself; the tool never creates new ones. After an update the mark is 🔴 when usage is above 90%, otherwise ✅.
