@@ -297,5 +297,66 @@ class TestCalculateStorage(unittest.TestCase):
       # The line with invalid size format should be skipped
       self.assertEqual(len(issue.storage_rows), 0)
 
+  def _update_and_get_patched_body(self, bodies):
+    usage = MagicMock()
+    usage.used = 50 * 1024 * 1024 * 1024
+    usage.total = 100 * 1024 * 1024 * 1024
+    usage.percent = 50
+
+    responses = []
+    for body in bodies:
+      response = MagicMock()
+      response.status_code = 200
+      response.json.return_value = {"body": body}
+      responses.append(response)
+
+    with patch('calculate_storage.requests.get', side_effect=responses), \
+         patch('calculate_storage.requests.patch') as mock_patch:
+      mock_patch.return_value.status_code = 200
+      issue = calculate_storage.GitHubIssue("test_repo", 1, "test_token")
+      self.assertTrue(issue.update_storage_row("HOST", "C", usage))
+      issue.update_issue_body()
+      return mock_patch.call_args.kwargs["json"]["body"]
+
+  def test_update_issue_body_keeps_marker_row_with_wrong_column_count(self):
+    valid = "| 🔴 | HOST | C | 99% | 1 GB (SSD) | <!-- calculate-storage#HOST#C -->"
+    malformed = "Malformed | with | incorrect | format <!-- calculate-storage#HOST#D -->"
+    body = f"header\n{valid}\n{malformed}\nfooter"
+
+    patched = self._update_and_get_patched_body([body, body])
+
+    self.assertEqual(
+      patched,
+      "header\n"
+      "| ✅ | HOST | C | 50.00 GB (50%) | 100.00 GB (SSD) | <!-- calculate-storage#HOST#C -->\n"
+      f"{malformed}\n"
+      "footer"
+    )
+
+  def test_update_issue_body_keeps_marker_row_with_invalid_size_column(self):
+    valid = "| 🔴 | HOST | C | 99% | 1 GB (SSD) | <!-- calculate-storage#HOST#C -->"
+    invalid_size = "| ✅ | HOST | D | 50% | Invalid Size Format | <!-- calculate-storage#HOST#D -->"
+    body = f"{valid}\n{invalid_size}"
+
+    patched = self._update_and_get_patched_body([body, body])
+
+    self.assertEqual(
+      patched,
+      "| ✅ | HOST | C | 50.00 GB (50%) | 100.00 GB (SSD) | <!-- calculate-storage#HOST#C -->\n"
+      f"{invalid_size}"
+    )
+
+  def test_update_issue_body_keeps_marker_row_added_after_initial_fetch(self):
+    valid = "| 🔴 | HOST | C | 99% | 1 GB (SSD) | <!-- calculate-storage#HOST#C -->"
+    added = "| ✅ | OTHER | E | 10.00 GB (10%) | 100.00 GB (HDD) | <!-- calculate-storage#OTHER#E -->"
+
+    patched = self._update_and_get_patched_body([valid, f"{valid}\n{added}"])
+
+    self.assertEqual(
+      patched,
+      "| ✅ | HOST | C | 50.00 GB (50%) | 100.00 GB (SSD) | <!-- calculate-storage#HOST#C -->\n"
+      f"{added}"
+    )
+
 if __name__ == "__main__":
   unittest.main()
