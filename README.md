@@ -65,7 +65,7 @@ sudo ISSUE_NUMBER=123 bash calculate-storage.sh
 $env:ISSUE_NUMBER = "123"; .\calculate-storage.ps1
 ```
 
-Warning: both scripts run `docker system prune -a -f` when `docker` is available, which removes all unused Docker images, stopped containers, unused networks and build cache on the host before collecting disk usage. The shell script also creates `/opt/calculate-storage` with mode 777 (so keep the token file readable by its owner only, e.g. `chmod 600 data/github_token.txt`), offers to install a missing `git` or `python3` through `apt`/`yum` after asking for confirmation, and installs `python3-venv` through `apt` without asking when `ensurepip` is unavailable.
+Warning: both scripts run `docker system prune -a -f` when `docker` is available, which removes all unused Docker images, stopped containers, unused networks and build cache on the host before collecting disk usage. The shell script also creates `/opt/calculate-storage` with mode 755 (owner-writable only; keep the token file readable by its owner only, e.g. `chmod 600 data/github_token.txt`), offers to install a missing `git` or `python3` through `apt`/`yum` after asking for confirmation, and installs `python3-venv` through `apt` without asking when `ensurepip` is unavailable.
 
 ## Development
 
