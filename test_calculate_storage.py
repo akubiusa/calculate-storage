@@ -170,7 +170,7 @@ class TestCalculateStorage(unittest.TestCase):
   def test_main_get_timeout_returns_failure(self, mock_get, mock_get_github_token):
     tmpdir = tempfile.TemporaryDirectory()
     try:
-      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name, "GITHUB_REPOSITORY": "book000/book000"}):
         with patch('sys.argv', ["calculate_storage.py", "1"]):
           with self.assertLogs(level='ERROR') as log:
             exit_status = calculate_storage.main()
@@ -199,7 +199,7 @@ class TestCalculateStorage(unittest.TestCase):
     }
     tmpdir = tempfile.TemporaryDirectory()
     try:
-      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name, "GITHUB_REPOSITORY": "book000/book000"}):
         with patch('sys.argv', ["calculate_storage.py", "1"]):
           with self.assertLogs(level='ERROR') as log:
             exit_status = calculate_storage.main()
@@ -230,7 +230,7 @@ class TestCalculateStorage(unittest.TestCase):
     mock_get.side_effect = [response, calculate_storage.requests.exceptions.Timeout("secret detail")]
     tmpdir = tempfile.TemporaryDirectory()
     try:
-      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name, "GITHUB_REPOSITORY": "book000/book000"}):
         with patch('sys.argv', ["calculate_storage.py", "1"]):
           with self.assertLogs(level='ERROR') as log:
             exit_status = calculate_storage.main()
