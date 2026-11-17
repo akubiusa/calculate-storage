@@ -8,6 +8,8 @@ import psutil
 import requests
 import logging
 
+GITHUB_REQUEST_TIMEOUT = (5, 30)
+
 def _get_default_log_dir():
   if os.name == "nt":
     user_profile = os.environ.get("USERPROFILE", os.path.expanduser("~"))
@@ -161,7 +163,8 @@ class GitHubIssue:
       },
       json={
         "body": self.body
-      }
+      },
+      timeout=GITHUB_REQUEST_TIMEOUT
     )
 
     if response.status_code != 200:
@@ -175,7 +178,7 @@ class GitHubIssue:
       "Authorization": f"token {self.github_token}"
     }
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=GITHUB_REQUEST_TIMEOUT)
     if response.status_code != 200:
       raise Exception(f"Failed to get issue body: {response.text}")
 
@@ -286,7 +289,11 @@ def main():
 
   github_token = get_github_token()
 
-  github_issue = GitHubIssue(repo_name, issue_number, github_token)
+  try:
+    github_issue = GitHubIssue(repo_name, issue_number, github_token)
+  except requests.exceptions.RequestException as e:
+    logging.error(f"GitHub API GET request failed ({type(e).__name__})")
+    return 1
 
   hostname = get_real_hostname()
   drives = github_issue.get_computer_drives(hostname)
@@ -319,7 +326,11 @@ def main():
   save_results(hostname, results)
 
   logging.info("Update issue body")
-  github_issue.update_issue_body()
+  try:
+    github_issue.update_issue_body()
+  except requests.exceptions.RequestException as e:
+    logging.error(f"GitHub API PATCH request failed ({type(e).__name__})")
+    return 1
   return 0
 
 if __name__ == "__main__":
