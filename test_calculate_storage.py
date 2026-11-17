@@ -124,6 +124,11 @@ class TestCalculateStorage(unittest.TestCase):
 
     issue = calculate_storage.GitHubIssue("test_repo", 1, "test_token")
     self.assertEqual(issue.body, "Test issue body")
+    mock_get.assert_called_once_with(
+      "https://api.github.com/repos/test_repo/issues/1",
+      headers={"Authorization": "token test_token"},
+      timeout=(5, 30)
+    )
 
   @patch('calculate_storage.requests.get')
   def test_get_issue_body_failure(self, mock_get):
@@ -153,6 +158,89 @@ class TestCalculateStorage(unittest.TestCase):
       issue.body = "Updated body"
       result = issue.update_issue_body()
       self.assertTrue(result)
+    mock_patch.assert_called_once_with(
+      "https://api.github.com/repos/test_repo/issues/1",
+      headers={"Authorization": "token test_token"},
+      json={"body": "Mocked body"},
+      timeout=(5, 30)
+    )
+
+  @patch('calculate_storage.get_github_token', return_value="test_token")
+  @patch('calculate_storage.requests.get', side_effect=calculate_storage.requests.exceptions.Timeout("secret detail"))
+  def test_main_get_timeout_returns_failure(self, mock_get, mock_get_github_token):
+    tmpdir = tempfile.TemporaryDirectory()
+    try:
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name, "GITHUB_REPOSITORY": "book000/book000"}):
+        with patch('sys.argv', ["calculate_storage.py", "1"]):
+          with self.assertLogs(level='ERROR') as log:
+            exit_status = calculate_storage.main()
+      self.assertEqual(exit_status, 1)
+      self.assertIn("GitHub API GET request failed (Timeout)", log.output[0])
+      self.assertNotIn("secret detail", log.output[0])
+      mock_get.assert_called_once_with(
+        "https://api.github.com/repos/book000/book000/issues/1",
+        headers={"Authorization": "token test_token"},
+        timeout=(5, 30)
+      )
+    finally:
+      self._cleanup_logging_handlers()
+      tmpdir.cleanup()
+
+  @patch('calculate_storage.save_results')
+  @patch('calculate_storage.psutil.disk_usage', return_value=DiskUsage(total=100 * 1024, used=50 * 1024, free=50 * 1024, percent=50))
+  @patch('calculate_storage.get_real_hostname', return_value="TEST_COMPUTER")
+  @patch('calculate_storage.get_github_token', return_value="test_token")
+  @patch('calculate_storage.requests.patch', side_effect=calculate_storage.requests.exceptions.Timeout("secret detail"))
+  @patch('calculate_storage.requests.get')
+  def test_main_patch_timeout_returns_failure(self, mock_get, mock_patch, mock_get_github_token, mock_get_real_hostname, mock_disk_usage, mock_save_results):
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+      "body": "| ✅ | TEST_COMPUTER | C: | 50% | 100.00 KB (SSD) | <!-- calculate-storage#TEST_COMPUTER#C -->"
+    }
+    tmpdir = tempfile.TemporaryDirectory()
+    try:
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name, "GITHUB_REPOSITORY": "book000/book000"}):
+        with patch('sys.argv', ["calculate_storage.py", "1"]):
+          with self.assertLogs(level='ERROR') as log:
+            exit_status = calculate_storage.main()
+      self.assertEqual(exit_status, 1)
+      self.assertIn("GitHub API PATCH request failed (Timeout)", log.output[0])
+      self.assertNotIn("secret detail", log.output[0])
+      mock_patch.assert_called_once_with(
+        "https://api.github.com/repos/book000/book000/issues/1",
+        headers={"Authorization": "token test_token"},
+        json={"body": "| ✅ | TEST_COMPUTER | C: | 50.00 KB (50%) | 100.00 KB (SSD) | <!-- calculate-storage#TEST_COMPUTER#C -->"},
+        timeout=(5, 30)
+      )
+    finally:
+      self._cleanup_logging_handlers()
+      tmpdir.cleanup()
+
+  @patch('calculate_storage.save_results')
+  @patch('calculate_storage.psutil.disk_usage', return_value=DiskUsage(total=100 * 1024, used=50 * 1024, free=50 * 1024, percent=50))
+  @patch('calculate_storage.get_real_hostname', return_value="TEST_COMPUTER")
+  @patch('calculate_storage.get_github_token', return_value="test_token")
+  @patch('calculate_storage.requests.get')
+  def test_main_refresh_get_timeout_returns_failure(self, mock_get, mock_get_github_token, mock_get_real_hostname, mock_disk_usage, mock_save_results):
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {
+      "body": "| ✅ | TEST_COMPUTER | C: | 50% | 100.00 KB (SSD) | <!-- calculate-storage#TEST_COMPUTER#C -->"
+    }
+    mock_get.side_effect = [response, calculate_storage.requests.exceptions.Timeout("secret detail")]
+    tmpdir = tempfile.TemporaryDirectory()
+    try:
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name, "GITHUB_REPOSITORY": "book000/book000"}):
+        with patch('sys.argv', ["calculate_storage.py", "1"]):
+          with self.assertLogs(level='ERROR') as log:
+            exit_status = calculate_storage.main()
+      self.assertEqual(exit_status, 1)
+      self.assertIn("GitHub API GET request failed (Timeout)", log.output[0])
+      self.assertNotIn("secret detail", log.output[0])
+      self.assertEqual(mock_get.call_count, 2)
+    finally:
+      self._cleanup_logging_handlers()
+      tmpdir.cleanup()
 
   @patch('calculate_storage.requests.patch')
   def test_update_issue_body_failure(self, mock_patch):
