@@ -10,6 +10,12 @@ import logging
 
 GITHUB_REQUEST_TIMEOUT = (5, 30)
 
+class GitHubRequestError(requests.exceptions.RequestException):
+  def __init__(self, method, error):
+    self.method = method
+    self.error_type = type(error).__name__
+    super().__init__(f"{method} request failed ({self.error_type})")
+
 def _get_default_log_dir():
   if os.name == "nt":
     user_profile = os.environ.get("USERPROFILE", os.path.expanduser("~"))
@@ -156,16 +162,19 @@ class GitHubIssue:
 
     self.body = "\n".join(new_rows)
 
-    response = requests.patch(
-      f"https://api.github.com/repos/{self.repo_name}/issues/{self.issue_number}",
-      headers={
-        "Authorization" : f"token {self.github_token}"
-      },
-      json={
-        "body": self.body
-      },
-      timeout=GITHUB_REQUEST_TIMEOUT
-    )
+    try:
+      response = requests.patch(
+        f"https://api.github.com/repos/{self.repo_name}/issues/{self.issue_number}",
+        headers={
+          "Authorization" : f"token {self.github_token}"
+        },
+        json={
+          "body": self.body
+        },
+        timeout=GITHUB_REQUEST_TIMEOUT
+      )
+    except requests.exceptions.RequestException as e:
+      raise GitHubRequestError("PATCH", e) from e
 
     if response.status_code != 200:
       raise Exception(f"Failed to update issue body: {response.text}")
@@ -178,7 +187,10 @@ class GitHubIssue:
       "Authorization": f"token {self.github_token}"
     }
 
-    response = requests.get(url, headers=headers, timeout=GITHUB_REQUEST_TIMEOUT)
+    try:
+      response = requests.get(url, headers=headers, timeout=GITHUB_REQUEST_TIMEOUT)
+    except requests.exceptions.RequestException as e:
+      raise GitHubRequestError("GET", e) from e
     if response.status_code != 200:
       raise Exception(f"Failed to get issue body: {response.text}")
 
@@ -291,8 +303,8 @@ def main():
 
   try:
     github_issue = GitHubIssue(repo_name, issue_number, github_token)
-  except requests.exceptions.RequestException as e:
-    logging.error(f"GitHub API GET request failed ({type(e).__name__})")
+  except GitHubRequestError as e:
+    logging.error(f"GitHub API {e.method} request failed ({e.error_type})")
     return 1
 
   hostname = get_real_hostname()
@@ -328,8 +340,8 @@ def main():
   logging.info("Update issue body")
   try:
     github_issue.update_issue_body()
-  except requests.exceptions.RequestException as e:
-    logging.error(f"GitHub API PATCH request failed ({type(e).__name__})")
+  except GitHubRequestError as e:
+    logging.error(f"GitHub API {e.method} request failed ({e.error_type})")
     return 1
   return 0
 

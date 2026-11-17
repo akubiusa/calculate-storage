@@ -216,6 +216,32 @@ class TestCalculateStorage(unittest.TestCase):
       self._cleanup_logging_handlers()
       tmpdir.cleanup()
 
+  @patch('calculate_storage.save_results')
+  @patch('calculate_storage.psutil.disk_usage', return_value=DiskUsage(total=100 * 1024, used=50 * 1024, free=50 * 1024, percent=50))
+  @patch('calculate_storage.get_real_hostname', return_value="TEST_COMPUTER")
+  @patch('calculate_storage.get_github_token', return_value="test_token")
+  @patch('calculate_storage.requests.get')
+  def test_main_refresh_get_timeout_returns_failure(self, mock_get, mock_get_github_token, mock_get_real_hostname, mock_disk_usage, mock_save_results):
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {
+      "body": "| ✅ | TEST_COMPUTER | C: | 50% | 100.00 KB (SSD) | <!-- calculate-storage#TEST_COMPUTER#C -->"
+    }
+    mock_get.side_effect = [response, calculate_storage.requests.exceptions.Timeout("secret detail")]
+    tmpdir = tempfile.TemporaryDirectory()
+    try:
+      with patch.dict(os.environ, {"CALCULATE_STORAGE_LOG_DIR": tmpdir.name}):
+        with patch('sys.argv', ["calculate_storage.py", "1"]):
+          with self.assertLogs(level='ERROR') as log:
+            exit_status = calculate_storage.main()
+      self.assertEqual(exit_status, 1)
+      self.assertIn("GitHub API GET request failed (Timeout)", log.output[0])
+      self.assertNotIn("secret detail", log.output[0])
+      self.assertEqual(mock_get.call_count, 2)
+    finally:
+      self._cleanup_logging_handlers()
+      tmpdir.cleanup()
+
   @patch('calculate_storage.requests.patch')
   def test_update_issue_body_failure(self, mock_patch):
     mock_patch.return_value.status_code = 400
